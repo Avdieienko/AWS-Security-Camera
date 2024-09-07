@@ -1,1 +1,18 @@
-<p>videomenu works!</p>
+<main>
+  <p class="recordings_device_id">DeviceID: #{{deviceID}}</p>
+  <div class="recording_page" *ngIf="Object.keys(recordings).length > 0">
+    <div class="date_wrapper" *ngFor="let item of recordings | keyvalue">
+      <p class="section_header">{{item.key}}</p>
+      <hr class="header_underline"/>
+      <div class="recordings">
+        <div class="recording_wrapper" *ngFor="let recording of item.value" (click)="openRecording(recording)">
+          <mat-icon aria-hidden="false" aria-label="Example home icon" fontIcon="videocam"></mat-icon>
+          <p class="recording_name">{{formatTime(recording)}}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div *ngIf='!hide'>
+    <app-video-overlay (onHide)="changeHide($event)" [url]="activeURL" [name]="activeName"></app-video-overlay>
+  </div>
+</main>

@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { DevicemenuComponent } from './devicemenu/devicemenu.component';
 import { LoginComponent } from './login/login.component';
 import { VideomenuComponent } from './videomenu/videomenu.component';
+import { AboutComponent } from './about/about.component';
 
 
 export const routes: Routes = [
@@ -14,7 +15,11 @@ export const routes: Routes = [
     component: LoginComponent
   },
   {
-    path: 'recording',
+    path: 'recordings/:deviceID',
     component: VideomenuComponent
+  },
+  {
+    path: 'about',
+    component: AboutComponent
   }
 ];

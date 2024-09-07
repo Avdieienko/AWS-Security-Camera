@@ -1,0 +1,3 @@
+[submodule "source/IoT_Device_Manager"]
+	path = source/IoT_Device_Manager
+	url = https://github.com/Avdieienko/IoT_Device_Manager.git

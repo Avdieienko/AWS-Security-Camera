@@ -1,1 +1,22 @@
-<p>login works!</p>
+<main>
+  <h1 class="login_title">Log In</h1>
+  <p class="login_p">Go to AWS Console and retrieve keys from user “app”.</p>
+  <form [hidden]="success" class="login_form" (ngSubmit)="submitHandler()" [formGroup]="form">
+    <div>
+      <label for="id">Access Key ID:</label>
+      <textarea required id="id" formControlName="id"></textarea>
+      <p class="form_error" *ngIf="id && id.hasError('required') && id.touched">
+        Access Key ID is required.
+      </p>
+    </div>
+    <div>
+      <label for="id">Secret Access Key:</label>
+      <textarea required id="id" formControlName="key"></textarea>
+      <p class="form_error" *ngIf="key && key.hasError('required') && key.touched">
+        Secret Access Key is required.
+      </p>
+    </div>
+    <button class="submit_login" [disabled]="form.invalid">Login</button>
+  </form>
+  <p class="fetch_error">{{error}}</p>
+</main>

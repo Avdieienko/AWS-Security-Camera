@@ -1,1 +1,21 @@
-<p>devicemenu works!</p>
+<main>
+  <div>
+    <div *ngIf = "Object.keys(devices).length > 0">
+      <div>
+        <input class="device_search_bar" type="text" placeholder="Search..." #filter (input)="searchDevices(filter.value)">
+      </div>
+      <div class="devices">
+        <div class="device_wrapper" *ngFor="let item of filteredDevices | keyvalue">
+          <div class="device_info_wrapper" (click)="openDevice(item.key)">
+            <p>Type: {{item.value.deviceType}}</p>
+            <p>Camera: {{item.value.cameraType}}</p>
+          </div>
+          <p>{{item.value.deviceName}} #{{item.key}}</p>
+        </div>
+      </div>
+    </div>
+    <div *ngIf="Object.keys(devices).length == 0">
+      <p class="section_header">Log in or register devices first</p>
+    </div>
+  </div>
+</main>

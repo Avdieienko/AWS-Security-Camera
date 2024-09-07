@@ -1,0 +1,63 @@
+.login_form{
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+}
+
+.login_title{
+  font-size: 2vw;
+  font-weight: 500;
+  margin-bottom: 1vh;
+}
+
+.login_p{
+  font-size: 1vw;
+  margin-bottom: 4vh;
+}
+
+
+main:has(.login_form){
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.login_form textarea{
+  max-height:2.5vw;
+  min-height:2.5vw;
+  max-width: 20vw;
+  min-width: 20vw;
+  font-size: 0.8vw;
+}
+
+.login_form label{
+  font-weight: 500;
+  font-size: 1vw;
+  text-align: left;
+}
+
+.login_form div{
+  display: flex;
+  flex-direction: column;
+  height:5vw;
+  margin-bottom: 2vh;
+}
+
+.submit_login{
+  width: 5vw;
+  margin: 0 auto;
+  margin-top: 10px;
+  background-color: black;
+  color:white;
+  border:none;
+  border-radius: 8px;
+  font-size:1.2vw;
+  padding: 1% 0;
+  width:6vw;
+  cursor: pointer;
+}
+
+.form_error{
+  color:red;
+  margin: 0;
+}

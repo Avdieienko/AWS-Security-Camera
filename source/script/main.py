@@ -15,21 +15,21 @@ count = 1
 prev_frame = None
 cap = cv2.VideoCapture(0)
 frame_size = (int(cap.get(3)), int(cap.get(4)))
-fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+fourcc = cv2.VideoWriter_fourcc(*"avc1")
+# fourcc = cv2.VideoWriter_fourcc(*"H264")
 
-tags = {
-    "DeviceType":"RasPi-5",
-    "CameraType":"Logi"
-}
 
 client = aws.configure_aws_user()
-credentials = aws.assume_role(client, "test" ,tags)
+tags = aws.configure_IoT_device(client)
+credentials = aws.assume_role(client, "test" ,tags, "IoTDeviceWriteVideo")
 role_start = time.time()
 role_end = 1190
+out = None
 
 def renew_credentials():
-    global credentials
-    credentials = aws.assume_role(client, "test" ,tags)
+    global credentials, credentials_thread
+    credentials = aws.assume_role(client, "test" ,tags, "IoTDeviceWriteVideo")
+    credentials_thread = threading.Thread(target=renew_credentials)
 
 credentials_thread = threading.Thread(target=renew_credentials)
 
@@ -80,7 +80,7 @@ while True:
         cv2.rectangle(frame, (x,y), ((x+w),(y+h)), (0,0,255), 2)
 
     # Renew credentials
-    if( time.time() - role_start > 10 ):
+    if time.time() - role_start > role_end:
         role_start = time.time()
         credentials_thread.start()
 
@@ -106,7 +106,7 @@ while True:
                 timer_started = False
                 out.release()
                 if(detection_stopped_time - start_time > 5):
-                    aws.upload_to_s3_with_temporary_credentials(f"../temp_storage/{date}.mp4","security-camera-videos",f"{date}.mp4",credentials)
+                    aws.upload_to_s3_with_temporary_credentials(f"../temp_storage/{date}.mp4","security-camera-videos",f"{date}.mp4",credentials, tags)
                 print("-------------\nFinished")
                 helpers.cleanup()
         #Start timer
@@ -119,11 +119,12 @@ while True:
 
     cv2.imshow("Window", frame)
     if cv2.waitKey(1) == ord("q") or cv2.waitKey(1) == ord("Q"):
-        out.release()
-        detection_stopped_time = time.time()
-        if(detection_stopped_time - start_time > 5):
-            aws.upload_to_s3_with_temporary_credentials(f"../temp_storage/{date}.mp4","security-camera-videos",f"{date}.mp4",credentials)
-        print("-------------\nFinished")
+        if out and detection:
+            out.release()
+            detection_stopped_time = time.time()
+            if(detection_stopped_time - start_time > 5):
+                aws.upload_to_s3_with_temporary_credentials(f"../temp_storage/{date}.mp4","security-camera-videos",f"{date}.mp4",credentials, tags)
+            print("-------------\nFinished")
         helpers.cleanup()
         break
 cap.release()
