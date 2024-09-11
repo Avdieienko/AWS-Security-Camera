@@ -1,0 +1,420 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "This template creates the infrastructure for the IoT-Security-Camera app. GitHub: https://github.com/Avdieienko/AWS-Security-Camera. Creator: Dmytro Avdieienko"
+
+Parameters:
+  S3BucketName:
+    Description: 'The name of the S3 bucket to be created to store recorded videos'
+    Type: String
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9-.]*$'
+    ConstraintDescription: 'Bucket name must contain only lowercase letters, numbers, periods, and hyphens.'
+    Default: 'security-camera-bucket'
+  DynamoDBTableName:
+    Description: 'The name of the DynamoDB table to be created to store registered devices'
+    Type: String
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: '^[a-zA-Z0-9_]*$'
+    ConstraintDescription: 'Table name must contain only letters and numbers.'
+    Default: 'registered_devices'
+  EncodedPublicKey:
+    Description: 'The public key to be used for CloudFront'
+    Type: String
+    MinLength: 1
+    MaxLength: 8192
+    ConstraintDescription: 'Public key must be a valid PEM encoded public key and include BEGIN PUBLIC KEY and END PUBLIC KEY.'
+
+Resources:
+  ###########################################################################
+  ############################### IAM Policies ##############################
+  ###########################################################################
+  RegisterDevicePolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: 'RegisterDevicePolicy'
+      Description: "Allow Describe and Put actions for a registered_devices table to allow device to regsiter itself"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Resource:
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/registered_devices"
+          Action:
+          - "dynamodb:Scan"
+          - "dynamodb:PutItem"
+          Effect: "Allow"
+          Sid: "AllowDescribePutItemDDB"
+
+  SecurityCameraAllowPutObjects:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: "SecurityCameraAllowPutObjects"
+      Description: ""
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Resource:
+          - !Sub "arn:aws:s3:::${S3BucketName}/*"
+          Action:
+          - "s3:PutObject"
+          - "s3:PutObjectTagging"
+          Effect: "Allow"
+          Sid: "AllowsPutObject"
+
+  SecurityCameraAppReadPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+        ManagedPolicyName: "SecurityCameraAppReadPolicy"
+        Description: "Allows for the Security Camera App to retrieve data"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Resource:
+            - !Sub "arn:aws:s3:::${S3BucketName}"
+            - !Sub "arn:aws:s3:::${S3BucketName}/*"
+            Action:
+            - "s3:ListBucket"
+            - "s3:GetObject"
+            - "s3:GetObjectTagging"
+            - "s3:GetObjectAttributes"
+            - "s3:ListTagsForResource"
+            Effect: "Allow"
+            Sid: "AllowsReadGetObjects"
+          - Resource:
+            - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}"
+            Action:
+            - "dynamodb:Scan"
+            Effect: "Allow"
+            Sid: "AllowDeviceRegisterScan"
+          - Resource: "*"
+            Action:
+            - "cloudfront:ListDistributions"
+            - "cloudfront:ListTagsForResource"
+            Effect: "Allow"
+            Sid: "AllowListDistributions"
+
+  #############################################################################
+  ################################# IAM Roles #################################
+  #############################################################################
+  SecurityCameraAppGetVideo:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns:
+      - !Ref SecurityCameraAppReadPolicy
+      MaxSessionDuration: 3600
+      RoleName: "SecurityCameraAppGetVideo"
+      Description: "Role for a Security Camera app to retrieve videos"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/app"
+          Sid: "AssumeReadSecurity"
+
+  IoTDeviceWriteVideo:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns:
+        - !Ref SecurityCameraAllowPutObjects
+      MaxSessionDuration: 3600
+      RoleName: "IoTDeviceWriteVideo"
+      Description: "Role to put objects into security camera s3 bucket. Role must be assumed by the user \"camera\"."
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Condition:
+            StringLike:
+              aws:RequestTag/deviceID: "*"
+              aws:RequestTag/cameraType: "*"
+              aws:RequestTag/deviceName: "*"
+              aws:RequestTag/deviceType: "*"
+          Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/camera"
+          Sid: "AssumeWriteSecurity"
+        - Condition:
+            StringEquals:
+              aws:RequestTag/deviceType:
+              - "RasPi-5"
+              - "RasPi-4"
+            StringLike:
+              aws:RequestTag/deviceID: "*"
+              aws:RequestTag/cameraType: "*"
+              aws:RequestTag/deviceName: "*"
+          Action: "sts:TagSession"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/camera"
+          Sid: "AllowTagging"
+
+  RegisterDeviceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns:
+        - !Ref RegisterDevicePolicy
+      MaxSessionDuration: 3600
+      RoleName: "RegisterDeviceRole"
+      Description: "To be assumed by IoTDeviceWriteVideo Role to register a device"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/camera"
+          Sid: "AllowDeviceAssumeDBRole"
+  ############################################################################
+  ############################### IAM Users ##################################
+  ############################################################################
+  IAMUserApp:
+    Type: "AWS::IAM::User"
+    Properties:
+      Policies:
+      - PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Resource:
+              !Ref SecurityCameraAppGetVideo
+            Action: "sts:AssumeRole"
+            Effect: "Allow"
+            Sid: "AllowAssumeRole"
+        PolicyName: "AppAssumeRole"
+      UserName: "app"
+
+  IAMUserCamera:
+    Type: "AWS::IAM::User"
+    Properties:
+      Policies:
+      - PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Resource:
+              - !Ref IoTDeviceWriteVideo
+              - !Ref RegisterDeviceRole
+            Action: "sts:AssumeRole"
+            Effect: "Allow"
+            Sid: "AllowAssumeRole"
+        PolicyName: "AssumeIoTRoleAllow"
+      UserName: "camera"
+  ############################################################################
+  ############################### S3 Bucket #################################
+  ############################################################################
+  S3BucketSecurityCameraVideos:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      BucketName: !Ref S3BucketName
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - BucketKeyEnabled: true
+          ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      Tags:
+        - Key: id
+          Value: security_camera_bucket
+
+  S3BucketPolicySecurityCameraVideos:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket:
+        Ref: "S3BucketSecurityCameraVideos"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
+          Action:
+          - "s3:PutObject"
+          - "s3:PutObjectTagging"
+          Effect: "Allow"
+          Principal:
+            AWS: "arn:aws:iam::992382414571:role/IoTDeviceWriteVideo"
+        - Resource:
+          - !Sub "arn:aws:s3:::${S3BucketName}"
+          - !Sub "arn:aws:s3:::${S3BucketName}/*"
+          Action:
+          - "s3:ListBucket"
+          - "s3:GetObject"
+          - "s3:GetObjectTagging"
+          - "s3:GetObjectAttributes"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:role/SecurityCameraAppGetVideo"
+        - Condition:
+            StringEquals:
+              AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+          Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
+          Action: "s3:GetObject"
+          Effect: "Allow"
+          Principal:
+            Service: "cloudfront.amazonaws.com"
+  ###########################################################################
+  ############################### DynamoDB Table ###########################
+  ###########################################################################
+  DynamoDBTableRegisteredDevices:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      SSESpecification:
+        SSEEnabled: false
+      TableName: !Ref DynamoDBTableName
+      AttributeDefinitions:
+      - AttributeType: "S"
+        AttributeName: "deviceID"
+      ContributorInsightsSpecification:
+        Enabled: false
+      BillingMode: "PAY_PER_REQUEST"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      ProvisionedThroughput:
+        WriteCapacityUnits: 1
+        ReadCapacityUnits: 1
+      KeySchema:
+      - KeyType: "HASH"
+        AttributeName: "deviceID"
+      DeletionProtectionEnabled: false
+      TableClass: "STANDARD"
+      Tags:
+        - Key: id
+          Value: security_camera_db_table
+      TimeToLiveSpecification:
+        Enabled: false
+  ###########################################################################
+  ############################### CloudFront ################################
+  ###########################################################################
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Logging:
+          IncludeCookies: false
+          Bucket: ''
+          Prefix: ''
+        Comment: ''
+        DefaultRootObject: ''
+        Origins:
+          - ConnectionTimeout: 10
+            OriginAccessControlId: !Ref CloudFrontOriginAccessControl
+            ConnectionAttempts: 3
+            OriginCustomHeaders: []
+            DomainName: !GetAtt S3BucketSecurityCameraVideos.DomainName
+            OriginShield:
+              Enabled: false
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginPath: ''
+            Id: !GetAtt S3BucketSecurityCameraVideos.DomainName
+        ViewerCertificate:
+          MinimumProtocolVersion: TLSv1
+          SslSupportMethod: vip
+          CloudFrontDefaultCertificate: true
+        PriceClass: PriceClass_All
+        DefaultCacheBehavior:
+          Compress: false
+          FunctionAssociations: []
+          LambdaFunctionAssociations: []
+          TargetOriginId: !GetAtt S3BucketSecurityCameraVideos.DomainName
+          ViewerProtocolPolicy: redirect-to-https
+          ResponseHeadersPolicyId: eaab4381-ed33-4a86-88ca-d9558dc6cd63
+          TrustedSigners: []
+          FieldLevelEncryptionId: ''
+          TrustedKeyGroups:
+            - !Ref CloudFrontKeyGroup
+          AllowedMethods:
+            - HEAD
+            - GET
+            - OPTIONS
+          CachedMethods:
+            - HEAD
+            - GET
+            - OPTIONS
+          SmoothStreaming: false
+          CachePolicyId: !Ref CloudFrontCachePolicy
+        Staging: false
+        CustomErrorResponses: []
+        ContinuousDeploymentPolicyId: ''
+        OriginGroups:
+          Quantity: 0
+          Items: []
+        Enabled: true
+        Aliases: []
+        IPV6Enabled: true
+        WebACLId: ''
+        HttpVersion: http2
+        Restrictions:
+          GeoRestriction:
+            Locations: []
+            RestrictionType: none
+        CacheBehaviors: []
+        Tags:
+        - Key: id
+          Value: security_camera_distribution
+
+  CloudFrontCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Comment: Policy with caching enabled. Supports Gzip and Brotli compression.
+        MinTTL: 1
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingGzip: true
+        DefaultTTL: 86400
+        Name: Managed-CachingOptimized
+
+  CloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        SigningBehavior: always
+        Description: ''
+        SigningProtocol: sigv4
+        OriginAccessControlOriginType: s3
+        Name: RecordingsAccess
+
+  CloudFrontKeyGroup:
+    Type: AWS::CloudFront::KeyGroup
+    Properties:
+      KeyGroupConfig:
+        Items:
+          - !Ref CloudFrontPublicKey
+        Name: security_camera_key_group
+
+  CloudFrontPublicKey:
+    Type: AWS::CloudFront::PublicKey
+    Properties:
+      PublicKeyConfig:
+        Comment: ''
+        CallerReference: !Sub "${AWS::StackName}-${AWS::Region}-PublicKey"
+        EncodedKey: !Ref EncodedPublicKey
+        Name: security_camera_public_key
+
+  ############################################################################
+  ############################### Outputs ###################################
+  ############################################################################
+
+Outputs:
+  S3BucketName:
+    Description: 'The name of the S3 bucket'
+    Value: !Ref S3BucketSecurityCameraVideos
+  DynamoDBTableName:
+    Description: 'The name of the DynamoDB table'
+    Value: !Ref DynamoDBTableRegisteredDevices
+  CloudFrontDistributionID:
+    Description: 'The ID of the CloudFront distribution'
+    Value: !Ref CloudFrontDistribution
