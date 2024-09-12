@@ -9,7 +9,6 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from botocore.signers import CloudFrontSigner
-import time
 
 app = Flask(__name__)
 CORS(app)
@@ -17,97 +16,6 @@ CORS(app)
 @app.route("/login", methods=["POST"])
 # @cross_origin()
 def login():
-#     return jsonify(	[
-# 	{
-# 		"datetime": "06-08-2024-12-34-21",
-# 		"deviceID": "1234",
-# 		"deviceName": "test_name"
-# 	},
-# 	{
-# 		"datetime": "07-08-2024-12-11-16",
-# 		"deviceID": "1234",
-# 		"deviceName": "test_name"
-# 	},
-# 	{
-# 		"datetime": "07-08-2024-12-42-07",
-# 		"deviceID": "1234",
-# 		"deviceName": "test_name"
-# 	},
-# 	{
-# 		"datetime": "04-09-2024-12-57-27",
-# 		"deviceID": "12345",
-# 		"deviceName": "test_name2"
-# 	},
-#   {
-# 		"datetime": "07-05-2024-12-42-07",
-# 		"deviceID": "12345",
-# 		"deviceName": "test_name2"
-# 	},
-# 	{
-# 		"datetime": "01-09-2024-12-57-27",
-# 		"deviceID": "12345",
-# 		"deviceName": "test_name2"
-# 	}
-# ]), 200
-
-    # files = [
-    #   {
-    #     "datetime": "07-08-2024-12-11-16",
-    #     "deviceID": "10934"
-    #   },
-    #   {
-    #     "datetime": "07-08-2024-12-42-07",
-    #     "deviceID": "10934"
-    #   },
-    #   {
-    #     "datetime": "07-03-2024-12-21-16",
-    #     "deviceID": "10934"
-    #   },
-    #   {
-    #     "datetime": "07-08-2023-12-42-07",
-    #     "deviceID": "10343298"
-    #   },
-    #   {
-    #     "datetime": "07-02-2024-12-11-16",
-    #     "deviceID": "10341298"
-    #   },
-    #   {
-    #     "datetime": "07-08-2024-12-42-07",
-    #     "deviceID": "10341298"
-    #   }
-    # ]
-
-    # files = {
-    #   '10343298': {
-    #     '02-09-2024': ['02-09-2024-10-08-16', '02-09-2024-10-09-31', '02-09-2024-10-15-13'],
-    #     '18-08-2024': ['18-08-2024-14-22-31']
-    #   },
-    #   '1234': {
-    #     '07-08-2024': ['07-08-2024-12-11-16', '07-08-2024-12-42-07']
-    #   }
-    # }
-
-    # devices = {
-    #   "10341298": {
-    #     "cameraType": "Logitech",
-    #     "deviceName": "test_py",
-    #     "deviceType": "RasPi-4"
-    #   },
-    #   "10343298": {
-    #     "cameraType": "Sony",
-    #     "deviceName": "camera_1",
-    #     "deviceType": "RasPi-5"
-    #   },
-    #   "10934": {
-    #     "cameraType": "Logitech",
-    #     "deviceName": "test_name",
-    #     "deviceType": "RasPi-5-mini"
-    #   }
-    # }
-
-    # return jsonify({"recordings":files, "devices":devices}), 200
-
-
     id = request.json["id"]
     key = request.json["key"]
 
@@ -140,8 +48,22 @@ def login():
       aws_session_token=credentials['SessionToken']
     )
 
-    # Define your bucket name
-    bucket_name ="security-camera-videos"
+    # Loop over all buckets and get one with tag 'id' equal to 'security_camera_bucket'
+    buckets = s3_client.list_buckets()
+    bucket_name = None
+    for bucket in buckets['Buckets']:
+      try:
+        bucket_tags = s3_client.get_bucket_tagging(Bucket=bucket['Name'])
+      except Exception as e:
+        print(f"Bucket {bucket['Name']} has no tags.Continue...")
+        continue
+      for tag in bucket_tags['TagSet']:
+        if tag['Key'] == 'id' and tag['Value'] == 'security_camera_bucket':
+          bucket_name = bucket['Name']
+          break
+
+    if not bucket_name:
+      return jsonify("No required S3 bucket was found."), 500
 
     files_list = []
     continuation_token = None
@@ -196,22 +118,38 @@ def login():
 
     devices = {}
     try:
-      db_client = boto3.resource(
+      db_client = boto3.client(
         'dynamodb',
         aws_access_key_id=credentials['AccessKeyId'],
         aws_secret_access_key=credentials['SecretAccessKey'],
         aws_session_token=credentials['SessionToken'],
         region_name=session.region_name
       )
-      table = db_client.Table('registered_devices')
-      items = table.scan()["Items"]
 
-      for item in items:
-        devices[item["deviceID"]] = {
-          "deviceName":item["deviceName"],
-          "deviceType":item["deviceType"],
-          "cameraType":item["cameraType"]
-        }
+      table_names = []
+      for table in db_client.list_tables()['TableNames']:
+        table_names.append(table)
+
+      for tableName in table_names:
+        table_arn = db_client.describe_table(TableName=tableName)['Table']['TableArn']
+
+        # List the tags of the table
+        tags_response = db_client.list_tags_of_resource(ResourceArn=table_arn)
+        tags = tags_response["Tags"]
+        for tag in tags:
+          if tag['Key'] == 'id' and tag['Value'] == 'security_camera_db_table':
+            items = db_client.scan(
+              TableName=tableName
+            )["Items"]
+            for item in items:
+              devices[item["deviceID"]["S"]] = {
+                "deviceName":item["deviceName"]["S"],
+                "deviceType":item["deviceType"]["S"],
+                "cameraType":item["cameraType"]["S"]
+              }
+            break
+      if not devices:
+        return jsonify("No required tablen found"), 500
     except Exception as e:
       return jsonify(f"Error getting devices: {e}"), 500
 

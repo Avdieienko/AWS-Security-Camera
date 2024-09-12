@@ -1,0 +1,21 @@
+<main>
+  <h1 class="section_header">Description</h1>
+  <hr class="header_underline"/>
+  <p class="description">
+    This is a cloud based security camera app, which requires an AWS account.
+    To prepare infrastructure you can navigate to the GitHub page where you will need to deploy infrastructure with already prepared AWS Cloud Formation yaml file,
+    as well as the scripts for IoT device(camera). See more instructions on GitHub.
+  </p>
+  <h1 class="section_header">Links</h1>
+  <hr class="header_underline"/>
+  <div class="links">
+    <button class="link" (click)="openAWS()">
+      <p class="link_text">AWS Console</p>
+      <img class="link_img" src="images/aws_secondary.png" alt="AWS Console"/>
+    </button>
+    <button class="link github" (click)="openGithub()">
+      <p class="link_text">GitHub Page</p>
+      <img class="link_img" src="images/github.png" alt="AWS Console"/>
+    </button>
+  </div>
+</main>

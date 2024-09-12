@@ -1,0 +1,51 @@
+.video-overlay-wrapper{
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.103);
+}
+
+.video-overlay{
+  background-color: #a1a1a1;
+  position: relative;
+  width: 80%;
+  max-width: 40vw;
+  left: 50%;
+  top: 50%;
+  padding-top:2rem;
+  border-radius: 10px;
+  transform: translate(-50%, -50%);
+}
+
+.video-overlay video {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.recording_overlay_name{
+  display: block;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.close_overlay{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+  border-radius: 50%;
+  padding: 10px;
+}
+
+.close_overlay mat-icon {
+  font-size: 24px;
+}
+
+.close_overlay:hover mat-icon{
+  color:red;
+}

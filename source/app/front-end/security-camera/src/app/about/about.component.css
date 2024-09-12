@@ -1,0 +1,41 @@
+.description{
+  margin-left: 3rem;
+  margin-top: 2rem;
+  margin-right: 20rem;
+  font-size: 1.1rem;
+}
+
+.links{
+  display: flex;
+  flex-direction: row;
+  column-gap: 2rem;
+  margin-top: 2rem;
+  margin-left: 3rem;
+}
+
+.link{
+  padding: 0em 1.5rem;
+  font-size: 1rem;
+  background-color: #232F3E;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  border: none;
+  border-radius: 6px;
+  width:13rem;
+  cursor: pointer;
+}
+
+.github{
+  color:black;
+  background-color: white;
+  border:black 2px solid;
+}
+
+.link_img{
+  width: 2rem;
+  height: auto;
+  margin-left: 0.8rem;
+}

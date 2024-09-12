@@ -1,0 +1,11 @@
+<div class="video-overlay-wrapper">
+  <div class="video-overlay">
+    <span class="recording_overlay_name">{{recordingName}}</span>
+    <video width="800" height="600" [autoplay]="true" [muted]="true" [loop]="true" [playsInline]="true" [controls]="true">
+      <source src={{recordingURL}} type="video/mp4">
+    </video>
+    <span class="close_overlay">
+      <mat-icon (click)="setHide()" aria-hidden="false" aria-label="Close" fontIcon="close"></mat-icon>
+    </span>
+  </div>
+</div>

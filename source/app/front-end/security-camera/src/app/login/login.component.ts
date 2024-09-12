@@ -52,8 +52,7 @@ export class LoginComponent {
 
   submitHandler() {
     this.loaderService.setLoading(true);
-      // this.http.post('http://127.0.0.1:5000/login', this.form.getRawValue()).subscribe(
-      this.http.post('http://127.0.0.1:5000/login', {"id":"AKIA6ODUZ53V6RT7RCPO","key":"pi5ZANHMd9OQEvp8sZ24q1LgtTBzV7afG+Cd+xEh"}).subscribe(
+      this.http.post('http://127.0.0.1:5000/login', this.form.getRawValue()).subscribe(
         {
           next: (response:any) => {
             console.log(response);
