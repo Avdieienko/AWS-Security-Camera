@@ -1,9 +1,11 @@
 <h1 align="center">AWS Security Camera</h1>
 <p>
-  <img src="https://img.shields.io/badge/AWS-S3-green?logo=amazons3&style=flat-square"/>
+  <img src="https://img.shields.io/badge/AWS-IAM-DD344C?logo=amazoniam&logoColor=white&style=flat-square"/>
+  <img src="https://img.shields.io/badge/AWS-S3-green?logo=amazons3&logoColor=white&style=flat-square"/>
   <img src="https://img.shields.io/badge/AWS-DynamoDB-blue?logo=amazondynamodb&style=flat-square"/>
   <img src="https://img.shields.io/badge/AWS-CloudFront-purple?logo=amazonwebservices&style=flat-square"/>
   <img src="https://img.shields.io/badge/AWS-CloudFormation-pink?logo=amazonwebservices&style=flat-square"/>
+  <img src="https://img.shields.io/badge/AWS-boto3-orange?logo=amazonwebservices&style=flat-square"/>
   <img src="https://img.shields.io/badge/OpenCV-4.10.0.84-5C3EE8?logo=opencv&style=flat-square"/>
   <img src="https://img.shields.io/badge/Angular-v18-red?logo=angular&style=flat-square"/>
   <img src="https://img.shields.io/badge/Python-Flask-yellow?logo=flask&style=flat-square"/>
