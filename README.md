@@ -34,12 +34,17 @@ The infrastructure is deployed using an AWS CloudFormation YAML file to automate
 - **CloudFront**: Video streaming in Angular Web
 - **CloudFormation**: Infrastracture as Code YAML template for fast infrastructure deployment
 
+<h2>Prerequisites</h2>
+
+- [AWS Account](https://aws.amazon.com/console/)
+
 <h2>Setup Instructions</h2>
 
 For IoT device setup refer to <a href="https://github.com/Avdieienko/IoT_Device_Manager">IoT_Device_Manager</a>.<br>
 
-1. Deploy AWS Infrastructure using AWS CloudFormation service and cformation.yaml template
-2. Set Up IoT device(RaspPi-4, RaspPi-5, Windows, MacOS, etc...) and generate RSA keys for cloudfront encryption using <a href="https://github.com/Avdieienko/IoT_Device_Manager">IoT_Device_Manager</a>
-3. Run Flask Backend and add put private key called private.pem in the same folder as Flask
-4. Retrieve access keys for app user, you will need it to login to your account in web
-5. Run Angular Frontend
+1. Generate RSA keys for cloudfront encryption using <a href="https://github.com/Avdieienko/IoT_Device_Manager">IoT_Device_Manager</a>
+2. Deploy AWS Infrastructure using AWS CloudFormation service and cformation.yaml template
+3. Set Up IoT device (RaspPi-4, RaspPi-5, Windows, MacOS, etc...).
+4. Run Flask Backend and  put private key called private.pem in the same folder as Flask app.py
+5. Retrieve access keys for app user, you will need it to login to your account in web
+6. Run Angular Frontend
